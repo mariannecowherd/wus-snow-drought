@@ -1,27 +1,17 @@
 #!/usr/bin/env python
 """
 Compute change in November-April total snowfall per degree of global warming
-(dSF/dT) for the WUS-D3 ensemble, from WRF's own `prec_snow` output.
+(dSF/dT) for the WUS-D3 ensemble.
 
     dSF/dT (x, m) = [ mean Nov-Apr snowfall(x, m, future window)
                       - mean Nov-Apr snowfall(x, m, reference window) ]
                     / [ global mean 2 m T(m, future window)
                         - global mean 2 m T(m, reference window) ]
 
-Each ESM is normalized by its own global warming; the ensemble mean is taken
-afterwards, so inter-model spread in climate sensitivity is removed rather
-than averaged over.
+Each ESM is normalized by its own global warming.
 
-`prec_snow` is the model's own phase-partitioned solid precipitation, so no
-rain-snow threshold is imposed here. Note that `snow` in the same archive is
-snow water equivalent (a state), not snowfall (a flux).
-
-Snowfall is summed over 1 November - 30 April and labelled by the water year
-containing April, matching the manuscript's winter definition. Only the years
-needed for the three windows are read, not the full record.
-
-The snow MASK still comes from baseline peak SWE > 10 cm (Section 2.1), read
-from allsnowmax_BC_{domain}.nc.
+Snowfall is summed over 1 November - 30 April, labels are by the water year
+containing April.
 
 Writes dsfdt_{domain}.nc:
     dsfdt         (gcm, lat2d, lon2d)  mm K-1, end-of-century
