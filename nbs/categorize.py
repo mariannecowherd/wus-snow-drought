@@ -1,23 +1,3 @@
-"""
-Drought categorization (warm / dry / warm-and-dry) and area-fraction
-time series for Figure 2.
-
-Replaces myutil.py's make_ts, which read the old categs_snow_*_BC.nc
-files produced by the buggy whole-record SWEI ranking. This version
-works from the corrected per-GCM SWEI cache plus winter temperature and
-precipitation anomalies computed here.
-
-Categories follow Section 2.2: a snow drought (SWEI <= -0.8) is
-classified by the sign of its coincident 1 Nov - 30 Apr temperature and
-precipitation anomalies relative to the 1980-2010 baseline mean at that
-pixel, for that GCM.
-
-NOTE the old fig_stack.ipynb added a flat +0.02 to the wet category
-before plotting, apparently to keep it visible in the stack. That is a
-two-percentage-point inflation baked into the figure and is NOT
-reproduced here -- do not add it back.
-"""
-
 import glob
 import os
 
@@ -34,12 +14,6 @@ WINTER_MONTHS = [11, 12, 1, 2, 3, 4]
 def _find_var_year_files(var, gcm, variant, experiment, domain, bc=True):
     """
     Glob directly for {var}.daily.* files.
-
-    An earlier version derived these paths by string-substituting the
-    variable name into the file list found for 'snow'. That silently
-    produced nonexistent or mismatched paths whenever a variable's files
-    were named or located differently, with no error raised until much
-    later -- globbing and failing loudly is the point of this function.
     """
     expdir = os.path.join(_experiment_dir(gcm, variant, experiment, bc=bc),
                           'postprocess', domain)
@@ -61,15 +35,8 @@ def load_winter_var(var, gcm, domain='d02', variant=None, bc=True,
     how : 'mean' | 'sum' | 'pdd'
         'mean' -- winter mean (temperature)
         'sum'  -- winter total (precipitation)
-        'pdd'  -- positive degree days: sum of daily degrees above
-                  pdd_base_c, matching the PDD definition used in
-                  Section 2.4. Use this if the categorization should be
-                  consistent with the regression analysis rather than
-                  with a plain winter-mean temperature.
+        'pdd'  -- positive degree days
 
-    var_name : name of the variable INSIDE the file, if it differs from
-        the filename prefix `var`. Not assumed to match -- this was true
-        for 'snow' but is not guaranteed for t2/prec.
     """
     variant = variant or GCM_VARIANTS[gcm]
     calendar = CALENDARS[gcm]
@@ -120,10 +87,6 @@ def build_anomalies(domain='d02', baseline_years=range(1980, 2010),
                      temp_how='mean', t_var='t2', p_var='prec',
                      t_var_name=None, p_var_name=None):
     """
-    Winter T and P anomalies from the baseline mean, per GCM per pixel
-    per water year. Cached, since this is as expensive as the SWEI
-    computation itself.
-
     temp_how : 'mean' (winter mean temperature, as Section 2.2 reads) or
         'pdd' (positive degree days, consistent with Section 2.4). These
         give different categorizations -- pick one and state it in the
@@ -184,14 +147,7 @@ def build_anomalies(domain='d02', baseline_years=range(1980, 2010),
 def categorize(swei, anoms):
     """
     Boolean masks for each SWEI/anomaly category, on
-    (gcm, year, lat, lon). Thresholds per Section 2.2.
-
-    Droughts that are neither warm nor dry (temperature anomaly <= 0 AND
-    precipitation anomaly >= 0) fall into none of the three drought
-    categories -- the manuscript's typology has no bin for them. They are
-    returned as 'drought_other' so they can be counted rather than
-    silently dropped; check whether this is non-negligible before
-    reporting drought-type fractions.
+    (gcm, year, lat, lon). 
     """
     valid = swei.notnull()
     drought = (swei <= -0.8) & valid
@@ -210,16 +166,7 @@ def categorize(swei, anoms):
 
 
 def make_ts(swei, anoms, region_mask, drought_only=False):
-    """
-    Area fraction in each category per year, averaged across GCMs --
-    i.e. thresholded per GCM first, then averaged, which is the correct
-    order and matches what the old make_ts already did.
 
-    drought_only=True renormalizes the three drought categories to sum
-    to 1, for the third column of Figure 2. Note this DROPS
-    'drought_other'; if that category is non-negligible, panels c and f
-    do not represent the full drought area.
-    """
     cats = categorize(swei, anoms)
     keys = (['dry', 'warmdry', 'warm', 'drought_other'] if drought_only
             else ['dry', 'warmdry', 'warm', 'drought_other',
