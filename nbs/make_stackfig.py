@@ -4,7 +4,7 @@ import os
 import numpy as np
 import xarray as xr
 import matplotlib
-matplotlib.use('Agg')          # no display on a compute node
+matplotlib.use('Agg')         
 import matplotlib.pyplot as plt
 
 from load_wus_d3 import load_domain_coords
@@ -17,14 +17,13 @@ savedir = '/glade/work/mcowherd/'
 figdir = '../figures'
 
 inc = 30
-y1, y2 = 1980, 1980 + inc          # baseline window 1980-2009
+y1, y2 = 1980, 1980 + inc         
 BASELINE_YEARS = range(y1, y2)
-SNOW_THRESH_MM = 100               # 10 cm, per manuscript Section 2.1
+SNOW_THRESH_MM = 100               
 
 bounds = {'SN': [-122, -118, 34.7, 41],
           'MR': [-114.3, -104, 42, 49]}
 
-# (domain, region, drought_only) for each of the six panels
 setup = [('d01', 'SN', False), ('d02', 'SN', False), ('d02', 'SN', True),
          ('d01', 'MR', False), ('d02', 'MR', False), ('d02', 'MR', True)]
 
@@ -41,7 +40,7 @@ CHUNKS = {'gcm': 1, 'year': -1}    # elementwise across gcm until the final mean
 
 
 # ---------------------------------------------------------------------
-# helpers
+# mask stuff goes here
 # ---------------------------------------------------------------------
 def load_mask_and_coords(domain, thresh_mm=SNOW_THRESH_MM):
     """Snow mask + 2D lat/lon for one domain."""
@@ -54,8 +53,7 @@ def load_mask_and_coords(domain, thresh_mm=SNOW_THRESH_MM):
     mask = (ms.sel(year=slice(y1, y2 - 1)).mean(dim='year').mean(dim='gcm').swe
             > thresh_mm).compute()
 
-    # build_snow_mask.py calls attach_coords, so XLAT/XLONG ride along on
-    # the mask; drop them so they don't collide with la/lo below
+
     mask = mask.drop_vars(['XLAT', 'XLONG', 'elevation', 'landmask'],
                           errors='ignore')
 
@@ -72,9 +70,9 @@ def region_mask(region, la, lo, snowmask):
 
 
 # ---------------------------------------------------------------------
-# one domain at a time: reduce to small series, then free
+# make the series
 # ---------------------------------------------------------------------
-series = {}          # panel index -> {category: (year,) DataArray}
+series = {}      
 diagnostics = []
 
 for dom in sorted({s[0] for s in setup}):
@@ -93,8 +91,7 @@ for dom in sorted({s[0] for s in setup}):
 
     print(f'{dom}: {int(snowmask.sum())} unmasked pixels, swei {swei.shape}')
 
-    # sanity: baseline drought/wet fractions, computed lazily rather than
-    # by pulling the whole array into memory
+    # sanity: baseline drought/wet fractions! chekc 
     base = swei.sel(year=slice(y1, y2 - 1))
     n_valid = int(base.notnull().sum().compute())
     n_dr = int((base <= -0.8).sum().compute())
@@ -111,8 +108,7 @@ for dom in sorted({s[0] for s in setup}):
         print(f'  panel {chr(i + 97)}: {region} {dom} '
               f'{"(drought only)" if drought_only else ""}')
 
-        # droughts that are neither warm nor dry have no bin in the
-        # manuscript typology -- quantify rather than silently drop
+        # neither ?? 
         if drought_only:
             c = categorize(swei, anoms)
             other = float(c['drought_other'].where(rmask).mean().compute())
@@ -129,7 +125,7 @@ for dom in sorted({s[0] for s in setup}):
     gc.collect()
 
 # ---------------------------------------------------------------------
-# plot (only the small series are alive now)
+# plot 
 # ---------------------------------------------------------------------
 fig, ax = plt.subplots(2, 3, figsize=(25, 10))
 axs = ax.flatten()
@@ -176,7 +172,7 @@ for region, (i45, i9) in {'SN': (0, 1), 'MR': (3, 4)}.items():
         print(f'{region} {name}: 45-9 km {float(diff.mean()):+.3f} +/- {float(diff.std()):.3f}')
 
 # ---------------------------------------------------------------------
-# numbers for the text
+# numbers
 # ---------------------------------------------------------------------
 print('\n--- diagnostics ---')
 for line in diagnostics:
@@ -230,11 +226,7 @@ for region, i in PANELS.items():
 
 
 # ---------------------------------------------------------------------
-# SWEI floor: with a 30-year baseline and the Gringorten plotting
-# position, rank 1 maps to p = 0.56/30.12 and SWEI = -2.084, so no year
-# can score below that however anomalous it is. Report how much of the
-# end-of-century distribution sits at that floor, since severity there
-# is censored rather than resolved.
+# SWEI floor stats
 # ---------------------------------------------------------------------
 from scipy.stats import norm
 
